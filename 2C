@@ -1,1 +1,159 @@
 
+CREATE DATABASE IF NOT EXISTS DBMS_2C;
+USE DBMS_2C;
+
+CREATE TABLE Goals (
+    goal_ID INT PRIMARY KEY,
+    goal_type VARCHAR(50)
+);
+
+CREATE TABLE Users (
+    user_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100),
+    registration_date DATE,
+    goal_ID INT,
+    FOREIGN KEY (goal_ID) REFERENCES Goals(goal_ID)
+);
+
+CREATE TABLE Users_Goal (
+    user_ID INT,
+    goal_ID INT,
+    goal_type VARCHAR(50),
+    PRIMARY KEY (user_ID, goal_ID),
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID),
+    FOREIGN KEY (goal_ID) REFERENCES Goals(goal_ID)
+);
+
+CREATE TABLE Workouts (
+    workout_ID INT PRIMARY KEY,
+    user_ID INT,
+    workout_date DATE,
+    workout_type VARCHAR(50),
+    start_time TIME,
+    end_time TIME,
+    duration_in_minutes INT,
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID)
+);
+
+CREATE TABLE WorkoutDetails (
+    workout_ID INT,
+    exercise_name VARCHAR(50),
+    sets INT,
+    repetitions INT,
+    weight INT,
+    PRIMARY KEY (workout_ID, exercise_name),
+    FOREIGN KEY (workout_ID) REFERENCES Workouts(workout_ID)
+);
+
+CREATE TABLE Steps (
+    step_ID INT PRIMARY KEY,
+    user_ID INT,
+    tracking_date DATE,
+    step_count INT,
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID)
+);
+
+INSERT INTO Goals VALUES
+(1, 'Lose Weight'),
+(2, 'Build Muscle'),
+(3, 'Improve Endurance'),
+(4, 'Stay Fit'),
+(5, 'Gain Weight');
+
+INSERT INTO Users VALUES
+(101, 'Rahul', 'rahul@gmail.com', '2026-01-10', 1),
+(102, 'Priya', 'priya@yahoo.com', '2026-02-15', 2),
+(103, 'Amit', 'amit@gmail.com', '2026-03-05', 3),
+(104, 'Sneha', 'sneha@gmail.com', '2026-04-12', 4),
+(105, 'Riya', 'riya@hotmail.com', '2026-05-20', 5);
+
+INSERT INTO Users_Goal VALUES
+(101, 1, 'Lose Weight'),
+(102, 2, 'Build Muscle'),
+(103, 3, 'Improve Endurance'),
+(104, 4, 'Stay Fit'),
+(105, 5, 'Gain Weight');
+
+INSERT INTO Workouts VALUES
+(1, 101, '2026-11-01', 'Running', '06:00:00', '07:00:00', 60),
+(2, 102, '2026-11-01', 'Cycling', '07:00:00', '07:45:00', 45),
+(3, 103, '2026-11-02', 'Yoga', '08:00:00', '08:30:00', 30),
+(4, 104, '2026-11-02', 'Running', '17:00:00', '18:00:00', 60),
+(5, 105, '2026-11-03', 'Weight Training', '18:00:00', '19:00:00', 60);
+
+INSERT INTO WorkoutDetails VALUES
+(1, 'Treadmill', 3, 10, 0),
+(2, 'Cycling', 2, 15, 0),
+(3, 'Surya Namaskar', 3, 12, 0),
+(4, 'Running', 3, 10, 0),
+(5, 'Bench Press', 3, 10, 40);
+
+INSERT INTO Steps VALUES
+(1, 101, '2026-11-01', 8000),
+(2, 102, '2026-11-01', 6500),
+(3, 103, '2026-11-02', 9000),
+(4, 104, '2026-11-02', 7000),
+(5, 105, '2026-11-03', 5000);
+
+-- Q1
+SELECT Users.name, SUM(Steps.step_count) AS Total_Steps
+FROM Users
+JOIN Steps ON Users.user_ID = Steps.user_ID
+GROUP BY Users.user_ID, Users.name
+ORDER BY Total_Steps DESC
+LIMIT 1;
+
+-- Q2
+SELECT Users.name, Goals.goal_type
+FROM Users
+JOIN Goals ON Users.goal_ID = Goals.goal_ID
+WHERE Goals.goal_type = 'Lose Weight';
+
+-- Q3
+SELECT workout_type, AVG(duration_in_minutes) AS Average_Duration
+FROM Workouts
+GROUP BY workout_type;
+
+-- Q4
+DELIMITER //
+
+CREATE FUNCTION TotalSteps(
+    uid INT,
+    start_date DATE,
+    end_date DATE
+)
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE total INT;
+
+    SELECT COALESCE(SUM(step_count), 0)
+    INTO total
+    FROM Steps
+    WHERE user_ID = uid
+    AND tracking_date BETWEEN start_date AND end_date;
+
+    RETURN total;
+END //
+
+DELIMITER ;
+
+SELECT TotalSteps(101, '2026-11-01', '2026-11-30') AS Total_Steps;
+
+-- Q5
+SELECT *
+FROM Workouts
+WHERE duration_in_minutes > 60;
+
+-- Q6
+SELECT workout_type, start_time, end_time
+FROM Workouts
+WHERE user_ID = 101
+AND workout_date = '2026-11-01';
+
+-- Q7
+SELECT *
+FROM Users
+WHERE registration_date > '2026-01-01';
