@@ -1,0 +1,132 @@
+CREATE DATABASE CollegeDB;
+USE CollegeDB;
+
+CREATE TABLE Subjects (
+    subject_ID INT PRIMARY KEY,
+    subject_name VARCHAR(50)
+);
+
+CREATE TABLE Teachers (
+    teacher_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    subject_ID INT
+);
+
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT
+);
+
+CREATE TABLE Students (
+    student_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    class_ID INT
+);
+
+CREATE TABLE Marks (
+    Exam_id INT,
+    student_ID INT,
+    class_ID INT,
+    subject_ID INT,
+    exam_name VARCHAR(50),
+    marks INT
+);
+
+INSERT INTO Subjects VALUES
+(1, 'DBMS'), (2, 'Java'), (3, 'Python'), (4, 'OS');
+
+INSERT INTO Teachers VALUES
+(1, 'Amit', 1), (2, 'Rahul', 2);
+
+INSERT INTO Classes VALUES
+(1, 'SE', 1), (2, 'TE', 2);
+
+INSERT INTO Students VALUES
+(101, 'Gaurav', '2005-03-15', 'Male', 1),
+(102, 'Sakshi', '2005-06-20', 'Female', 1),
+(103, 'Ankit', '2004-03-10', 'Male', 2),
+(104, 'Priya', '2005-08-12', 'Female', 2);
+
+INSERT INTO Marks VALUES
+(1,101,1,1,'Midterm',22),
+(1,101,1,2,'Midterm',20),
+(1,101,1,3,'Midterm',18),
+(1,101,1,4,'Midterm',24),
+(1,102,1,1,'Midterm',23),
+(1,102,1,2,'Midterm',19),
+(1,102,1,3,'Midterm',21),
+(1,102,1,4,'Midterm',22),
+(1,103,2,1,'Midterm',20),
+(1,103,2,2,'Midterm',22),
+(1,103,2,3,'Midterm',19),
+(1,103,2,4,'Midterm',21);
+
+-- Q1. Create a view for student marks
+
+CREATE VIEW Student_Marks AS
+SELECT Students.student_ID, Students.name,
+Subjects.subject_name, Marks.marks
+FROM Students
+JOIN Marks ON Students.student_ID = Marks.student_ID
+JOIN Subjects ON Marks.subject_ID = Subjects.subject_ID;
+
+SELECT * FROM Student_Marks;
+
+-- Q2. Average marks of a specific class
+
+DELIMITER //
+
+CREATE PROCEDURE Class_Average(IN cid INT)
+BEGIN
+    SELECT AVG(marks) AS Average_Marks
+    FROM Marks
+    WHERE class_ID = cid;
+END //
+
+DELIMITER ;
+
+CALL Class_Average(1);
+
+-- Q3. Student with highest marks in a subject
+
+SELECT Students.student_ID, Students.name,
+Classes.class_name, Marks.marks
+FROM Students
+JOIN Classes ON Students.class_ID = Classes.class_ID
+JOIN Marks ON Students.student_ID = Marks.student_ID
+WHERE Marks.subject_ID = 1
+AND Marks.marks = (
+    SELECT MAX(marks)
+    FROM Marks
+    WHERE subject_ID = 1
+);
+
+-- Q4. Students born in March
+
+SELECT name, date_of_birth
+FROM Students
+WHERE MONTH(date_of_birth) = 3;
+
+-- Q5. Average marks of each subject
+
+SELECT Subjects.subject_name, AVG(Marks.marks) AS Average_Marks
+FROM Marks
+JOIN Subjects ON Marks.subject_ID = Subjects.subject_ID
+WHERE exam_name = 'Midterm'
+GROUP BY Subjects.subject_name;
+
+-- Q6. Total students in each class
+
+SELECT Classes.class_name, COUNT(Students.student_ID) AS Total_Students
+FROM Classes
+LEFT JOIN Students ON Classes.class_ID = Students.class_ID
+GROUP BY Classes.class_ID, Classes.class_name;
+
+-- Q7. Display female students
+
+SELECT *
+FROM Students
+WHERE gender = 'Female';
