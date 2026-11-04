@@ -1,19 +1,6 @@
-CREATE DATABASE SchoolDB_1C;
-USE SchoolDB_1C;
 
-CREATE TABLE Classes (
-    class_ID INT PRIMARY KEY,
-    class_name VARCHAR(30),
-    teacher_ID INT
-);
-
-CREATE TABLE Students (
-    student_ID INT PRIMARY KEY,
-    name VARCHAR(50),
-    date_of_birth DATE,
-    gender VARCHAR(10),
-    class_ID INT
-);
+CREATE DATABASE IF NOT EXISTS DBMS_1C;
+USE DBMS_1C;
 
 CREATE TABLE Subjects (
     subject_ID INT PRIMARY KEY,
@@ -22,8 +9,23 @@ CREATE TABLE Subjects (
 
 CREATE TABLE Teachers (
     teacher_ID INT PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT,
+    FOREIGN KEY (teacher_ID) REFERENCES Teachers(teacher_ID)
+);
+
+CREATE TABLE Students (
+    student_ID INT PRIMARY KEY,
     name VARCHAR(50),
-    subject_ID INT
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    class_ID INT,
+    FOREIGN KEY (class_ID) REFERENCES Classes(class_ID)
 );
 
 CREATE TABLE Grades (
@@ -31,61 +33,100 @@ CREATE TABLE Grades (
     student_ID INT,
     subject_ID INT,
     exam_name VARCHAR(50),
-    marks INT
+    marks INT,
+    FOREIGN KEY (student_ID) REFERENCES Students(student_ID),
+    FOREIGN KEY (subject_ID) REFERENCES Subjects(subject_ID)
 );
 
 CREATE TABLE Attendance (
+    attendance_ID INT PRIMARY KEY,
     student_ID INT,
     attendance_date DATE,
-    status VARCHAR(15)
+    status VARCHAR(10),
+    FOREIGN KEY (student_ID) REFERENCES Students(student_ID)
 );
 
--- Q5. History table
-
 CREATE TABLE Student_Class_History (
+    history_ID INT AUTO_INCREMENT PRIMARY KEY,
     student_name VARCHAR(50),
     old_class_ID INT,
     new_class_ID INT,
-    changed_at TIMESTAMP
+    change_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Q1. View for attendance summary
+INSERT INTO Subjects VALUES
+(1, 'DBMS'),
+(2, 'Java'),
+(3, 'Python'),
+(4, 'OS'),
+(5, 'CN');
 
+INSERT INTO Teachers VALUES
+(1, 'Patil'),
+(2, 'Sharma'),
+(3, 'Kadam'),
+(4, 'Joshi'),
+(5, 'Deshmukh');
+
+INSERT INTO Classes VALUES
+(1, 'SE', 1),
+(2, 'TE', 2),
+(3, 'BE', 3),
+(4, 'FE', 4),
+(5, 'ME', 5);
+
+INSERT INTO Students VALUES
+(101, 'Deepak', '2005-03-14', 'Male', 1),
+(102, 'Priya', '2005-07-20', 'Female', 2),
+(103, 'Amit', '2004-03-05', 'Male', 3),
+(104, 'Sneha', '2005-12-09', 'Female', 4),
+(105, 'Riya', '2004-06-18', 'Female', 5);
+
+INSERT INTO Grades VALUES
+(1, 101, 1, 'Midterm', 24),
+(2, 102, 2, 'Midterm', 20),
+(3, 103, 3, 'Midterm', 22),
+(4, 104, 4, 'Midterm', 18),
+(5, 105, 5, 'Midterm', 25);
+
+INSERT INTO Attendance VALUES
+(1, 101, '2026-03-01', 'Present'),
+(2, 102, '2026-03-01', 'Absent'),
+(3, 103, '2026-03-01', 'Present'),
+(4, 104, '2026-03-01', 'Late'),
+(5, 105, '2026-03-01', 'Present');
+
+-- Q1
 CREATE VIEW Attendance_Summary AS
-SELECT Students.student_ID, Students.name,
-COUNT(Attendance.student_ID) AS Total_Days,
-SUM(Attendance.status = 'Present') AS Present_Days,
-SUM(Attendance.status = 'Absent') AS Absent_Days,
-SUM(Attendance.status = 'Late') AS Late_Days
+SELECT
+    Students.student_ID,
+    Students.name,
+    COUNT(Attendance.attendance_ID) AS Total_Days,
+    SUM(CASE WHEN Attendance.status = 'Present' THEN 1 ELSE 0 END) AS Present_Days,
+    SUM(CASE WHEN Attendance.status = 'Absent' THEN 1 ELSE 0 END) AS Absent_Days,
+    SUM(CASE WHEN Attendance.status = 'Late' THEN 1 ELSE 0 END) AS Late_Days
 FROM Students
-LEFT JOIN Attendance
-ON Students.student_ID = Attendance.student_ID
+LEFT JOIN Attendance ON Students.student_ID = Attendance.student_ID
 GROUP BY Students.student_ID, Students.name;
 
 SELECT * FROM Attendance_Summary;
 
--- Q2. Number of students in each class
-
-SELECT Classes.class_name,
-COUNT(Students.student_ID) AS Total_Students
+-- Q2
+SELECT Classes.class_name, COUNT(Students.student_ID) AS Total_Students
 FROM Classes
-LEFT JOIN Students
-ON Classes.class_ID = Students.class_ID
+LEFT JOIN Students ON Classes.class_ID = Students.class_ID
 GROUP BY Classes.class_ID, Classes.class_name;
 
--- Q3. Students whose names begin with D
-
+-- Q3
 SELECT student_ID, name
 FROM Students
 WHERE name LIKE 'D%';
 
--- Q4. Total number of subjects
-
+-- Q4
 SELECT COUNT(*) AS Total_Subjects
 FROM Subjects;
 
--- Q5. Trigger to record class changes
-
+-- Q5
 DELIMITER //
 
 CREATE TRIGGER Class_Change
@@ -94,14 +135,21 @@ FOR EACH ROW
 BEGIN
     IF OLD.class_ID <> NEW.class_ID THEN
         INSERT INTO Student_Class_History
-        VALUES (OLD.name, OLD.class_ID, NEW.class_ID, NOW());
+        (student_name, old_class_ID, new_class_ID)
+        VALUES
+        (NEW.name, OLD.class_ID, NEW.class_ID);
     END IF;
 END //
 
 DELIMITER ;
 
--- Q6. Top 3 highest marks in Midterm
+UPDATE Students
+SET class_ID = 2
+WHERE student_ID = 101;
 
+SELECT * FROM Student_Class_History;
+
+-- Q6
 SELECT Students.name, Subjects.subject_name, Grades.marks
 FROM Grades
 JOIN Students ON Grades.student_ID = Students.student_ID
@@ -110,8 +158,7 @@ WHERE Grades.exam_name = 'Midterm'
 ORDER BY Grades.marks DESC
 LIMIT 3;
 
--- Q7. Students in ascending order
-
+-- Q7
 SELECT *
 FROM Students
 ORDER BY name ASC;
