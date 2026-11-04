@@ -1,0 +1,132 @@
+
+CREATE DATABASE IF NOT EXISTS DBMS_5A;
+USE DBMS_5A;
+
+CREATE TABLE Departments (
+    DepartmentID INT PRIMARY KEY,
+    DepartmentName VARCHAR(50),
+    Location VARCHAR(50)
+);
+
+CREATE TABLE Patients (
+    PatientID INT PRIMARY KEY,
+    PatientName VARCHAR(50),
+    DOB DATE,
+    Address VARCHAR(100),
+    PhoneNumber VARCHAR(15)
+);
+
+CREATE TABLE Doctors (
+    DoctorID INT PRIMARY KEY,
+    DoctorName VARCHAR(50),
+    Specialty VARCHAR(50),
+    DepartmentID INT,
+    FOREIGN KEY (DepartmentID) REFERENCES Departments(DepartmentID)
+);
+
+CREATE TABLE Appointments (
+    AppointmentID INT PRIMARY KEY,
+    PatientID INT,
+    DoctorID INT,
+    Appointment_Date DATE,
+    Created_At_time TIME,
+    FOREIGN KEY (PatientID) REFERENCES Patients(PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES Doctors(DoctorID)
+);
+
+INSERT INTO Departments VALUES
+(1, 'General Medicine', 'Pune'),
+(2, 'Cardiology', 'Mumbai'),
+(3, 'Neurology', 'Delhi'),
+(4, 'Orthopedics', 'Nashik'),
+(5, 'Dermatology', 'Nagpur');
+
+INSERT INTO Patients VALUES
+(101, 'Amit Sharma', '1995-05-10', 'Pune', '9876543210'),
+(102, 'Ananya Patil', '2000-08-15', 'Mumbai', '9876543211'),
+(103, 'Rahul Verma', '1980-03-20', 'Delhi', '9876543212'),
+(104, 'Priya Singh', '1975-11-25', 'Nashik', '9876543213'),
+(105, 'Karan Joshi', '1992-01-05', 'Nagpur', '9876543214');
+
+INSERT INTO Doctors VALUES
+(1, 'Dr. Mehta', 'Cardiology', 2),
+(2, 'Dr. Sharma', 'Neurology', 3),
+(3, 'Dr. Patil', 'Orthopedics', 4),
+(4, 'Dr. Khan', 'General Medicine', 1),
+(5, 'Dr. Rao', 'Dermatology', 5);
+
+INSERT INTO Appointments VALUES
+(1, 101, 1, '2026-11-05', '10:00:00'),
+(2, 102, 2, '2026-11-06', '11:00:00'),
+(3, 103, 3, '2026-11-07', '12:00:00'),
+(4, 104, 4, '2026-11-08', '14:00:00'),
+(5, 105, 5, '2026-11-09', '15:00:00');
+
+-- Q1
+SELECT *
+FROM Doctors
+WHERE Specialty IN ('Cardiology', 'Neurology', 'Orthopedics');
+
+-- Q2
+SELECT *
+FROM Patients
+ORDER BY DOB DESC;
+
+-- Q3
+SELECT *
+FROM Appointments
+WHERE Appointment_Date = CURDATE();
+
+-- Q4
+SELECT Doctors.DoctorName, Departments.DepartmentName
+FROM Doctors
+JOIN Departments
+ON Doctors.DepartmentID = Departments.DepartmentID;
+
+-- Q5
+DELIMITER //
+
+CREATE PROCEDURE AddPatient(
+    IN pid INT,
+    IN pname VARCHAR(50),
+    IN dob DATE,
+    IN paddress VARCHAR(100),
+    IN phone VARCHAR(15)
+)
+BEGIN
+    INSERT INTO Patients
+    VALUES (pid, pname, dob, paddress, phone);
+END //
+
+DELIMITER ;
+
+CALL AddPatient(106, 'Sneha Desai', '2001-04-12', 'Pune', '9876543215');
+
+-- Q6
+DELIMITER //
+
+CREATE TRIGGER Default_Doctor_Department
+BEFORE INSERT ON Doctors
+FOR EACH ROW
+BEGIN
+    IF NEW.DepartmentID IS NULL THEN
+        SET NEW.DepartmentID = 1;
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Q7
+DELIMITER //
+
+CREATE TRIGGER Prevent_Past_Appointment
+BEFORE INSERT ON Appointments
+FOR EACH ROW
+BEGIN
+    IF NEW.Appointment_Date < CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Past appointments are not allowed';
+    END IF;
+END //
+
+DELIMITER ;
