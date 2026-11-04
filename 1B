@@ -1,0 +1,149 @@
+CREATE DATABASE CollegeDB_1B;
+USE CollegeDB_1B;
+
+CREATE TABLE Subjects (
+    subject_ID INT PRIMARY KEY,
+    subject_name VARCHAR(50)
+);
+
+CREATE TABLE Teachers (
+    teacher_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    subject_ID INT
+);
+
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT
+);
+
+CREATE TABLE Students (
+    student_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    class_ID INT
+);
+
+CREATE TABLE Marks (
+    Exam_id INT,
+    student_ID INT,
+    class_ID INT,
+    subject_ID INT,
+    exam_name VARCHAR(50),
+    marks INT
+);
+
+CREATE TABLE Attendance (
+    student_ID INT,
+    month VARCHAR(15),
+    year INT,
+    no_of_days_present INT,
+    total_working_days INT
+);
+
+-- Q1. Function to calculate absent days
+
+DELIMITER //
+
+CREATE FUNCTION Absent_Days(
+    sid INT,
+    m VARCHAR(15),
+    y INT
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE absent INT;
+
+    SELECT total_working_days - no_of_days_present
+    INTO absent
+    FROM Attendance
+    WHERE student_ID = sid
+    AND month = m
+    AND year = y;
+
+    RETURN absent;
+END //
+
+DELIMITER ;
+
+SELECT Absent_Days(101, 'March', 2026);
+
+-- Q2. SE students scoring more than 20
+
+SELECT DISTINCT Students.student_ID, Students.name
+FROM Students
+JOIN Classes ON Students.class_ID = Classes.class_ID
+JOIN Marks ON Students.student_ID = Marks.student_ID
+WHERE Classes.class_name = 'SE'
+AND Marks.marks > 20;
+
+-- Q3. Names having second letter 'a'
+
+SELECT *
+FROM Students
+WHERE name LIKE '_a%';
+
+-- Q4. Average attendance percentage of SE students in March
+
+SELECT AVG(
+    no_of_days_present * 100.0 / total_working_days
+) AS Average_Attendance
+FROM Attendance
+JOIN Students ON Attendance.student_ID = Students.student_ID
+JOIN Classes ON Students.class_ID = Classes.class_ID
+WHERE Classes.class_name = 'SE'
+AND month = 'March';
+
+-- Q5. Students scoring below 10 marks
+
+SELECT DISTINCT Students.name
+FROM Students
+JOIN Marks ON Students.student_ID = Marks.student_ID
+WHERE Marks.marks < 10;
+
+-- Q6. SE students and their Midterm total marks
+
+SELECT Students.name, SUM(Marks.marks) AS Total_Marks
+FROM Students
+JOIN Classes ON Students.class_ID = Classes.class_ID
+JOIN Marks ON Students.student_ID = Marks.student_ID
+WHERE Classes.class_name = 'SE'
+AND Marks.exam_name = 'Midterm'
+GROUP BY Students.student_ID, Students.name;
+
+-- Q7. Cursor to display student names one by one
+
+DELIMITER //
+
+CREATE PROCEDURE Display_Students()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE student_name VARCHAR(50);
+
+    DECLARE cur CURSOR FOR
+        SELECT name FROM Students;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND
+        SET finished = 1;
+
+    OPEN cur;
+
+    read_loop: LOOP
+        FETCH cur INTO student_name;
+
+        IF finished = 1 THEN
+            LEAVE read_loop;
+        END IF;
+
+        SELECT student_name;
+    END LOOP;
+
+    CLOSE cur;
+END //
+
+DELIMITER ;
+
+CALL Display_Students();
