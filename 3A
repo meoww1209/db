@@ -1,0 +1,153 @@
+
+CREATE DATABASE IF NOT EXISTS DBMS_3A;
+USE DBMS_3A;
+
+CREATE TABLE Menu (
+    item_ID INT PRIMARY KEY,
+    item_name VARCHAR(50),
+    category VARCHAR(50),
+    price DECIMAL(10,2)
+);
+
+CREATE TABLE Customers (
+    customer_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    contact_number VARCHAR(15)
+);
+
+CREATE TABLE Orders (
+    order_ID INT PRIMARY KEY,
+    customer_ID INT,
+    order_date_time DATETIME,
+    FOREIGN KEY (customer_ID) REFERENCES Customers(customer_ID)
+);
+
+CREATE TABLE OrderItems (
+    order_ID INT,
+    item_ID INT,
+    quantity INT,
+    unit_price DECIMAL(10,2),
+    PRIMARY KEY (order_ID, item_ID),
+    FOREIGN KEY (order_ID) REFERENCES Orders(order_ID),
+    FOREIGN KEY (item_ID) REFERENCES Menu(item_ID)
+);
+
+INSERT INTO Menu VALUES
+(1, 'Margherita Pizza', 'Pizza', 250),
+(2, 'Cheese Burger', 'Burger', 150),
+(3, 'Veg Sandwich', 'Sandwich', 100),
+(4, 'French Fries', 'Sides', 80),
+(5, 'Farmhouse Pizza', 'Pizza', 300);
+
+INSERT INTO Customers VALUES
+(101, 'Rahul', '9876543210'),
+(102, 'Priya', '9876543211'),
+(103, 'Amit', '9876543212'),
+(104, 'Sneha', '9876543213'),
+(105, 'Riya', '9876543214');
+
+INSERT INTO Orders VALUES
+(1, 101, NOW()),
+(2, 102, '2026-11-04 13:00:00'),
+(3, 103, '2026-11-03 14:00:00'),
+(4, 104, NOW()),
+(5, 105, '2026-11-02 19:00:00');
+
+INSERT INTO OrderItems VALUES
+(1, 1, 2, 250),
+(1, 2, 1, 150),
+(2, 3, 2, 100),
+(3, 4, 3, 80),
+(4, 5, 2, 300);
+
+-- Q1
+SELECT Menu.category,
+SUM(OrderItems.quantity * OrderItems.unit_price) AS Total_Sales
+FROM Menu
+JOIN OrderItems ON Menu.item_ID = OrderItems.item_ID
+GROUP BY Menu.category;
+
+-- Q2
+DELIMITER //
+
+CREATE PROCEDURE OrderDetails(IN oid INT)
+BEGIN
+    SELECT Orders.order_ID, Customers.name,
+    Menu.item_name, OrderItems.quantity,
+    OrderItems.unit_price
+    FROM Orders
+    JOIN Customers ON Orders.customer_ID = Customers.customer_ID
+    JOIN OrderItems ON Orders.order_ID = OrderItems.order_ID
+    JOIN Menu ON OrderItems.item_ID = Menu.item_ID
+    WHERE Orders.order_ID = oid;
+END //
+
+DELIMITER ;
+
+CALL OrderDetails(1);
+
+-- Q3
+SELECT Orders.order_ID, Customers.name
+FROM Orders
+JOIN Customers ON Orders.customer_ID = Customers.customer_ID;
+
+-- Q4
+SELECT Menu.item_ID, Menu.item_name
+FROM Menu
+LEFT JOIN OrderItems ON Menu.item_ID = OrderItems.item_ID
+WHERE OrderItems.item_ID IS NULL;
+
+-- Q5
+CREATE VIEW Top_3_Selling_Items AS
+SELECT Menu.item_name,
+SUM(OrderItems.quantity) AS Total_Sold
+FROM Menu
+JOIN OrderItems ON Menu.item_ID = OrderItems.item_ID
+GROUP BY Menu.item_ID, Menu.item_name
+ORDER BY Total_Sold DESC
+LIMIT 3;
+
+SELECT * FROM Top_3_Selling_Items;
+
+-- Q6
+SELECT *
+FROM Orders
+WHERE DATE(order_date_time) = CURDATE();
+
+-- Q7
+DELIMITER //
+
+CREATE PROCEDURE DailySales()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE sale_date DATE;
+    DECLARE total DECIMAL(10,2);
+
+    DECLARE sales_cursor CURSOR FOR
+        SELECT DATE(Orders.order_date_time),
+        SUM(OrderItems.quantity * OrderItems.unit_price)
+        FROM Orders
+        JOIN OrderItems ON Orders.order_ID = OrderItems.order_ID
+        GROUP BY DATE(Orders.order_date_time);
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND
+        SET finished = 1;
+
+    OPEN sales_cursor;
+
+    read_loop: LOOP
+        FETCH sales_cursor INTO sale_date, total;
+
+        IF finished = 1 THEN
+            LEAVE read_loop;
+        END IF;
+
+        SELECT sale_date AS Sale_Date, total AS Total_Sales;
+    END LOOP;
+
+    CLOSE sales_cursor;
+END //
+
+DELIMITER ;
+
+CALL DailySales();
