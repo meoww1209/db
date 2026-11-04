@@ -1,0 +1,134 @@
+
+CREATE DATABASE IF NOT EXISTS DBMS_3B;
+USE DBMS_3B;
+
+CREATE TABLE Menu (
+    item_ID INT PRIMARY KEY,
+    item_name VARCHAR(50),
+    category VARCHAR(50),
+    price DECIMAL(10,2)
+);
+
+CREATE TABLE Customers (
+    customer_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    contact_number VARCHAR(15)
+);
+
+CREATE TABLE Orders (
+    order_ID INT PRIMARY KEY,
+    customer_ID INT,
+    order_date_time DATETIME,
+    FOREIGN KEY (customer_ID) REFERENCES Customers(customer_ID)
+);
+
+CREATE TABLE OrderItems (
+    order_ID INT,
+    item_ID INT,
+    quantity INT,
+    unit_price DECIMAL(10,2),
+    PRIMARY KEY (order_ID, item_ID),
+    FOREIGN KEY (order_ID) REFERENCES Orders(order_ID),
+    FOREIGN KEY (item_ID) REFERENCES Menu(item_ID)
+);
+
+INSERT INTO Menu VALUES
+(1, 'Margherita Pizza', 'Pizza', 250),
+(2, 'Cheese Burger', 'Burger', 150),
+(3, 'Veg Sandwich', 'Sandwich', 100),
+(4, 'French Fries', 'Sides', 80),
+(5, 'Farmhouse Pizza', 'Pizza', 300);
+
+INSERT INTO Customers VALUES
+(101, 'Rahul', '9876543210'),
+(102, 'Priya', '9876543211'),
+(103, 'Amit', '9876543212'),
+(104, 'Sneha', '9876543213'),
+(105, 'Riya', '9876543214');
+
+INSERT INTO Orders VALUES
+(1, 101, '2026-11-01 12:00:00'),
+(2, 102, '2026-11-02 13:00:00'),
+(3, 103, '2026-11-03 14:00:00'),
+(4, 104, '2026-11-04 15:00:00'),
+(5, 105, '2026-11-05 19:00:00');
+
+INSERT INTO OrderItems VALUES
+(1, 1, 2, 250),
+(1, 2, 1, 150),
+(2, 3, 2, 100),
+(3, 4, 3, 80),
+(4, 2, 2, 150);
+
+-- Q1
+SELECT item_ID, item_name,
+(quantity * unit_price) AS Total_Price
+FROM OrderItems
+JOIN Menu USING (item_ID)
+WHERE order_ID = 1;
+
+-- Q2
+SELECT DISTINCT Customers.*
+FROM Customers
+JOIN Orders ON Customers.customer_ID = Orders.customer_ID;
+
+-- Q3
+SELECT COUNT(*) AS Total_Customers
+FROM Customers;
+
+-- Q4
+SELECT Customers.customer_ID, Customers.name
+FROM Customers
+JOIN Orders ON Customers.customer_ID = Orders.customer_ID
+JOIN OrderItems ON Orders.order_ID = OrderItems.order_ID
+JOIN Menu ON OrderItems.item_ID = Menu.item_ID
+WHERE Menu.category IN ('Pizza', 'Burger')
+GROUP BY Customers.customer_ID, Customers.name
+HAVING COUNT(DISTINCT Menu.category) = 2;
+
+-- Q5
+SELECT Menu.item_ID, Menu.item_name
+FROM Menu
+LEFT JOIN OrderItems ON Menu.item_ID = OrderItems.item_ID
+WHERE OrderItems.item_ID IS NULL;
+
+-- Q6
+DELIMITER //
+
+CREATE FUNCTION CheckCategory(
+    iid INT,
+    cat VARCHAR(50)
+)
+RETURNS BOOLEAN
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE result INT;
+
+    SELECT COUNT(*)
+    INTO result
+    FROM Menu
+    WHERE item_ID = iid
+    AND category = cat;
+
+    RETURN result > 0;
+END //
+
+DELIMITER ;
+
+SELECT CheckCategory(1, 'Pizza') AS Category_Check;
+
+-- Q7
+DELIMITER //
+
+CREATE TRIGGER Prevent_Negative_Price
+BEFORE INSERT ON Menu
+FOR EACH ROW
+BEGIN
+    IF NEW.price < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Price cannot be negative';
+    END IF;
+END //
+
+DELIMITER ;
