@@ -1,19 +1,6 @@
-CREATE DATABASE SchoolDB_1D;
-USE SchoolDB_1D;
 
-CREATE TABLE Classes (
-    class_ID INT PRIMARY KEY,
-    class_name VARCHAR(30),
-    teacher_ID INT
-);
-
-CREATE TABLE Students (
-    student_ID INT PRIMARY KEY,
-    name VARCHAR(50),
-    date_of_birth DATE,
-    gender VARCHAR(10),
-    class_ID INT
-);
+CREATE DATABASE IF NOT EXISTS DBMS_1D;
+USE DBMS_1D;
 
 CREATE TABLE Subjects (
     subject_ID INT PRIMARY KEY,
@@ -22,8 +9,23 @@ CREATE TABLE Subjects (
 
 CREATE TABLE Teachers (
     teacher_ID INT PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT,
+    FOREIGN KEY (teacher_ID) REFERENCES Teachers(teacher_ID)
+);
+
+CREATE TABLE Students (
+    student_ID INT PRIMARY KEY,
     name VARCHAR(50),
-    subject_ID INT
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    class_ID INT,
+    FOREIGN KEY (class_ID) REFERENCES Classes(class_ID)
 );
 
 CREATE TABLE Grades (
@@ -31,35 +33,61 @@ CREATE TABLE Grades (
     student_ID INT,
     subject_ID INT,
     exam_name VARCHAR(50),
-    marks INT
+    marks INT,
+    FOREIGN KEY (student_ID) REFERENCES Students(student_ID),
+    FOREIGN KEY (subject_ID) REFERENCES Subjects(subject_ID)
 );
 
-CREATE TABLE Attendance (
-    student_ID INT,
-    attendance_date DATE,
-    status VARCHAR(15)
-);
+INSERT INTO Subjects VALUES
+(1, 'DBMS'),
+(2, 'Java'),
+(3, 'Python'),
+(4, 'OS'),
+(5, 'CN');
 
--- Q1. Student names with class names
+INSERT INTO Teachers VALUES
+(1, 'Patil'),
+(2, 'Sharma'),
+(3, 'Kadam'),
+(4, 'Joshi'),
+(5, 'Deshmukh');
 
+INSERT INTO Classes VALUES
+(1, 'SE', 1),
+(2, 'TE', 2),
+(3, 'BE', 3),
+(4, 'FE', 4),
+(5, 'ME', 5);
+
+INSERT INTO Students VALUES
+(101, 'Deepak', '2005-03-14', 'Male', 1),
+(102, 'Priya', '2005-07-20', 'Female', 2),
+(103, 'Amit', '2004-03-05', 'Male', 3),
+(104, 'Sneha', '2005-12-09', 'Female', 4),
+(105, 'Riya', '2004-06-18', 'Female', 5);
+
+INSERT INTO Grades VALUES
+(1, 101, 1, 'Midterm', 24),
+(2, 102, 2, 'Midterm', 20),
+(3, 103, 3, 'Midterm', 22),
+(4, 104, 4, 'Midterm', 18),
+(5, 105, 5, 'Midterm', 25);
+
+-- Q1
 SELECT Students.name, Classes.class_name
 FROM Students
-JOIN Classes
-ON Students.class_ID = Classes.class_ID;
+JOIN Classes ON Students.class_ID = Classes.class_ID;
 
--- Q2. Highest marks in each subject
-
+-- Q2
 SELECT Subjects.subject_name, MAX(Grades.marks) AS Highest_Marks
-FROM Grades
-JOIN Subjects
-ON Grades.subject_ID = Subjects.subject_ID
+FROM Subjects
+JOIN Grades ON Subjects.subject_ID = Grades.subject_ID
 GROUP BY Subjects.subject_ID, Subjects.subject_name;
 
--- Q3. Trigger to prevent negative marks
-
+-- Q3
 DELIMITER //
 
-CREATE TRIGGER Check_Marks
+CREATE TRIGGER Prevent_Negative_Marks
 BEFORE INSERT ON Grades
 FOR EACH ROW
 BEGIN
@@ -71,11 +99,10 @@ END //
 
 DELIMITER ;
 
--- Q4. Procedure to count students in a class
-
+-- Q4
 DELIMITER //
 
-CREATE PROCEDURE Class_Students(IN cid INT)
+CREATE PROCEDURE TotalStudents(IN cid INT)
 BEGIN
     SELECT COUNT(*) AS Total_Students
     FROM Students
@@ -84,31 +111,26 @@ END //
 
 DELIMITER ;
 
-CALL Class_Students(1);
+CALL TotalStudents(1);
 
--- Q5. Students having total marks greater than 80
-
-SELECT Students.student_ID, Students.name,
-SUM(Grades.marks) AS Total_Marks
+-- Q5
+SELECT Students.student_ID, Students.name, SUM(Grades.marks) AS Total_Marks
 FROM Students
-JOIN Grades
-ON Students.student_ID = Grades.student_ID
+JOIN Grades ON Students.student_ID = Grades.student_ID
 GROUP BY Students.student_ID, Students.name
 HAVING SUM(Grades.marks) > 80;
 
--- Q6. Students whose names contain 'sh'
-
+-- Q6
 SELECT *
 FROM Students
 WHERE name LIKE '%sh%';
 
--- Q7. Subjects having average marks above overall average
-
-SELECT Subjects.subject_name, AVG(Grades.marks) AS Average_Marks
-FROM Grades
-JOIN Subjects
-ON Grades.subject_ID = Subjects.subject_ID
+-- Q7
+SELECT Subjects.subject_name, AVG(Grades.marks) AS Subject_Average
+FROM Subjects
+JOIN Grades ON Subjects.subject_ID = Grades.subject_ID
 GROUP BY Subjects.subject_ID, Subjects.subject_name
 HAVING AVG(Grades.marks) > (
-    SELECT AVG(marks) FROM Grades
+    SELECT AVG(marks)
+    FROM Grades
 );
