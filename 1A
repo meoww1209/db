@@ -1,25 +1,6 @@
 
--- DBMS CHITS 2025-26
--- SET 1A: COLLEGE MANAGEMENT SYSTEM
-
-CREATE DATABASE IF NOT EXISTS DBMS_1A;
+CREATE DATABASE DBMS_1A;
 USE DBMS_1A;
-
--- Reset tables for easy execution
-DROP VIEW IF EXISTS Student_Marks;
-DROP PROCEDURE IF EXISTS AvgMarks;
-DROP TABLE IF EXISTS Marks;
-DROP TABLE IF EXISTS Teachers;
-DROP TABLE IF EXISTS Students;
-DROP TABLE IF EXISTS Subjects;
-DROP TABLE IF EXISTS Classes;
-
--- 1. CREATE TABLES
-
-CREATE TABLE Classes (
-    class_ID INT PRIMARY KEY,
-    class_name VARCHAR(20)
-);
 
 CREATE TABLE Subjects (
     subject_ID INT PRIMARY KEY,
@@ -33,6 +14,13 @@ CREATE TABLE Teachers (
     FOREIGN KEY (subject_ID) REFERENCES Subjects(subject_ID)
 );
 
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT,
+    FOREIGN KEY (teacher_ID) REFERENCES Teachers(teacher_ID)
+);
+
 CREATE TABLE Students (
     student_ID INT PRIMARY KEY,
     name VARCHAR(50),
@@ -43,62 +31,64 @@ CREATE TABLE Students (
 );
 
 CREATE TABLE Marks (
-    exam_ID INT,
+    Exam_ID INT AUTO_INCREMENT PRIMARY KEY,
     student_ID INT,
     class_ID INT,
     subject_ID INT,
     exam_name VARCHAR(50),
     marks INT,
-    PRIMARY KEY (exam_ID, student_ID, subject_ID),
     FOREIGN KEY (student_ID) REFERENCES Students(student_ID),
     FOREIGN KEY (class_ID) REFERENCES Classes(class_ID),
     FOREIGN KEY (subject_ID) REFERENCES Subjects(subject_ID)
 );
 
--- 2. INSERT SAMPLE DATA
-
-INSERT INTO Classes VALUES
-(1, 'SE'),
-(2, 'TE'),
-(3, 'BE');
-
 INSERT INTO Subjects VALUES
 (1, 'DBMS'),
 (2, 'Java'),
 (3, 'Python'),
-(4, 'OS');
+(4, 'OS'),
+(5, 'CN');
 
 INSERT INTO Teachers VALUES
 (1, 'Patil', 1),
-(2, 'Sharma', 2);
+(2, 'Sharma', 2),
+(3, 'Kadam', 3),
+(4, 'Joshi', 4),
+(5, 'Deshmukh', 5);
+
+INSERT INTO Classes VALUES
+(1, 'SE-A', 1),
+(2, 'SE-B', 2),
+(3, 'TE-A', 3),
+(4, 'TE-B', 4),
+(5, 'BE-A', 5);
 
 INSERT INTO Students VALUES
-(1, 'Rahul', '2005-03-15', 'Male', 1),
-(2, 'Priya', '2005-04-10', 'Female', 1),
-(3, 'Amit', '2004-03-20', 'Male', 2),
-(4, 'Sneha', '2004-06-12', 'Female', 2),
-(5, 'Riya', '2003-03-25', 'Female', 3);
+(101, 'Rahul', '2005-03-14', 'Male', 1),
+(102, 'Priya', '2005-07-20', 'Female', 2),
+(103, 'Amit', '2004-03-05', 'Male', 3),
+(104, 'Sneha', '2005-12-09', 'Female', 4),
+(105, 'Riya', '2004-06-18', 'Female', 5);
 
-INSERT INTO Marks VALUES
-(1, 1, 1, 1, 'Midterm', 22),
-(1, 1, 1, 2, 'Midterm', 20),
-(1, 2, 1, 1, 'Midterm', 24),
-(1, 2, 1, 2, 'Midterm', 23),
-(1, 3, 2, 1, 'Midterm', 18);
+INSERT INTO Marks (student_ID, class_ID, subject_ID, exam_name, marks) VALUES
+(101, 1, 1, 'Midterm', 24),
+(102, 2, 2, 'Midterm', 20),
+(103, 3, 3, 'Midterm', 22),
+(104, 4, 4, 'Midterm', 21),
+(105, 5, 5, 'Midterm', 25);
 
--- Q1. CREATE A VIEW TO GET STUDENT MARKS FOR ALL SUBJECTS
-
+-- Q1
 CREATE VIEW Student_Marks AS
-SELECT Students.student_ID, Students.name,
-Subjects.subject_name, Marks.marks
+SELECT Students.student_ID, Students.name, Classes.class_name,
+       Subjects.subject_name, Marks.exam_name, Marks.marks
 FROM Students
+JOIN Classes ON Students.class_ID = Classes.class_ID
 JOIN Marks ON Students.student_ID = Marks.student_ID
 JOIN Subjects ON Marks.subject_ID = Subjects.subject_ID;
 
 SELECT * FROM Student_Marks;
 
--- Q2. PROCEDURE TO GET AVERAGE MARKS OF A SPECIFIC CLASS
-
+-- Q2
 DELIMITER //
 
 CREATE PROCEDURE AvgMarks(IN cid INT)
@@ -112,45 +102,34 @@ DELIMITER ;
 
 CALL AvgMarks(1);
 
--- Q3. STUDENT WITH HIGHEST MARKS IN A GIVEN SUBJECT
--- Subject ID 1 = DBMS
-
-SELECT Students.student_ID, Students.name,
-Classes.class_name, Marks.marks
-FROM Students
-JOIN Classes ON Students.class_ID = Classes.class_ID
-JOIN Marks ON Students.student_ID = Marks.student_ID
+-- Q3
+SELECT Students.student_ID, Students.name, Classes.class_name, Marks.marks
+FROM Marks
+JOIN Students ON Marks.student_ID = Students.student_ID
+JOIN Classes ON Marks.class_ID = Classes.class_ID
 WHERE Marks.subject_ID = 1
-AND Marks.marks = (
-    SELECT MAX(marks)
-    FROM Marks
-    WHERE subject_ID = 1
-);
+ORDER BY Marks.marks DESC
+LIMIT 1;
 
--- Q4. STUDENTS BORN IN MARCH
-
-SELECT name, date_of_birth
+-- Q4
+SELECT *
 FROM Students
 WHERE MONTH(date_of_birth) = 3;
 
--- Q5. AVERAGE MARKS FOR EACH SUBJECT IN A SPECIFIC EXAM
-
+-- Q5
 SELECT Subjects.subject_name, AVG(Marks.marks) AS Average_Marks
 FROM Marks
 JOIN Subjects ON Marks.subject_ID = Subjects.subject_ID
 WHERE Marks.exam_name = 'Midterm'
 GROUP BY Subjects.subject_ID, Subjects.subject_name;
 
--- Q6. TOTAL NUMBER OF STUDENTS IN EACH CLASS
-
-SELECT Classes.class_name,
-COUNT(Students.student_ID) AS Total_Students
+-- Q6
+SELECT Classes.class_name, COUNT(Students.student_ID) AS Total_Students
 FROM Classes
 LEFT JOIN Students ON Classes.class_ID = Students.class_ID
 GROUP BY Classes.class_ID, Classes.class_name;
 
--- Q7. DISPLAY ALL FEMALE STUDENTS
-
+-- Q7
 SELECT *
 FROM Students
 WHERE gender = 'Female';
