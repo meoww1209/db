@@ -1,5 +1,6 @@
-CREATE DATABASE FitnessDB_2B;
-USE FitnessDB_2B;
+
+CREATE DATABASE IF NOT EXISTS DBMS_2B;
+USE DBMS_2B;
 
 CREATE TABLE Goals (
     goal_ID INT PRIMARY KEY,
@@ -11,23 +12,28 @@ CREATE TABLE Users (
     name VARCHAR(50),
     email VARCHAR(100),
     registration_date DATE,
-    goal_ID INT
+    goal_ID INT,
+    FOREIGN KEY (goal_ID) REFERENCES Goals(goal_ID)
 );
 
 CREATE TABLE Users_Goal (
     user_ID INT,
     goal_ID INT,
-    goal_type VARCHAR(50)
+    goal_type VARCHAR(50),
+    PRIMARY KEY (user_ID, goal_ID),
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID),
+    FOREIGN KEY (goal_ID) REFERENCES Goals(goal_ID)
 );
 
 CREATE TABLE Workouts (
     workout_ID INT PRIMARY KEY,
     user_ID INT,
-    date DATE,
+    workout_date DATE,
     workout_type VARCHAR(50),
     start_time TIME,
     end_time TIME,
-    duration_in_minutes INT
+    duration_in_minutes INT,
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID)
 );
 
 CREATE TABLE WorkoutDetails (
@@ -35,18 +41,62 @@ CREATE TABLE WorkoutDetails (
     exercise_name VARCHAR(50),
     sets INT,
     repetitions INT,
-    weight FLOAT
+    weight INT,
+    PRIMARY KEY (workout_ID, exercise_name),
+    FOREIGN KEY (workout_ID) REFERENCES Workouts(workout_ID)
 );
 
 CREATE TABLE Steps (
     step_ID INT PRIMARY KEY,
     user_ID INT,
     tracking_date DATE,
-    step_count INT
+    step_count INT,
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID)
 );
 
--- Q1. Users with Improve Endurance goal and Running/Cycling workouts
+INSERT INTO Goals VALUES
+(1, 'Lose Weight'),
+(2, 'Build Muscle'),
+(3, 'Improve Endurance'),
+(4, 'Stay Fit'),
+(5, 'Gain Weight');
 
+INSERT INTO Users VALUES
+(101, 'Rahul', 'rahul@gmail.com', '2026-01-10', 3),
+(102, 'Priya', 'priya@yahoo.com', '2026-02-15', 2),
+(103, 'Amit', 'amit@gmail.com', '2026-03-05', 1),
+(104, 'Sneha', 'sneha@gmail.com', '2026-04-12', 4),
+(105, 'Riya', 'riya@hotmail.com', '2026-05-20', 5);
+
+INSERT INTO Users_Goal VALUES
+(101, 3, 'Improve Endurance'),
+(102, 2, 'Build Muscle'),
+(103, 1, 'Lose Weight'),
+(104, 4, 'Stay Fit'),
+(105, 5, 'Gain Weight');
+
+INSERT INTO Workouts VALUES
+(1, 101, '2026-11-01', 'Running', '06:00:00', '07:00:00', 60),
+(2, 101, '2026-11-02', 'Cycling', '07:00:00', '08:00:00', 60),
+(3, 101, '2026-11-03', 'Running', '06:00:00', '06:45:00', 45),
+(4, 101, '2026-11-04', 'Cycling', '07:00:00', '07:45:00', 45),
+(5, 103, '2026-11-04', 'Yoga', '08:00:00', '08:30:00', 30);
+
+INSERT INTO WorkoutDetails VALUES
+(1, 'Treadmill', 3, 10, 0),
+(2, 'Cycling', 2, 15, 0),
+(3, 'Running', 3, 12, 0),
+(4, 'Cycling', 2, 20, 0),
+(5, 'Yoga', 3, 10, 0);
+
+INSERT INTO Steps VALUES
+(1, 101, '2026-11-01', 8000),
+(2, 102, '2026-11-01', 6500),
+(3, 103, '2026-11-02', 9000),
+(4, 104, '2026-11-02', 7000),
+(5, 105, '2026-11-03', 5000);
+
+-- Q1
 SELECT DISTINCT Users.name
 FROM Users
 JOIN Goals ON Users.goal_ID = Goals.goal_ID
@@ -54,35 +104,26 @@ JOIN Workouts ON Users.user_ID = Workouts.user_ID
 WHERE Goals.goal_type = 'Improve Endurance'
 AND Workouts.workout_type IN ('Running', 'Cycling');
 
--- Q2. Average daily step count of each user
-
-SELECT Users.name, AVG(Daily_Steps.Total_Steps) AS Average_Steps
+-- Q2
+SELECT Users.name, AVG(Steps.step_count) AS Average_Daily_Steps
 FROM Users
-JOIN (
-    SELECT user_ID, tracking_date, SUM(step_count) AS Total_Steps
-    FROM Steps
-    GROUP BY user_ID, tracking_date
-) AS Daily_Steps
-ON Users.user_ID = Daily_Steps.user_ID
+JOIN Steps ON Users.user_ID = Steps.user_ID
 GROUP BY Users.user_ID, Users.name;
 
--- Q3. Total number of users
-
+-- Q3
 SELECT COUNT(*) AS Total_Users
 FROM Users;
 
--- Q4. View showing each user's most recent workout date
-
-CREATE VIEW Recent_Workouts AS
-SELECT Users.name, MAX(Workouts.date) AS Latest_Workout
+-- Q4
+CREATE VIEW Latest_Workout AS
+SELECT Users.name, MAX(Workouts.workout_date) AS Most_Recent_Workout
 FROM Users
 LEFT JOIN Workouts ON Users.user_ID = Workouts.user_ID
 GROUP BY Users.user_ID, Users.name;
 
-SELECT * FROM Recent_Workouts;
+SELECT * FROM Latest_Workout;
 
--- Q5. Trigger to ensure end time is after start time
-
+-- Q5
 DELIMITER //
 
 CREATE TRIGGER Check_Workout_Time
@@ -97,16 +138,14 @@ END //
 
 DELIMITER ;
 
--- Q6. Users who completed more than 3 workouts
-
+-- Q6
 SELECT Users.name, COUNT(Workouts.workout_ID) AS Total_Workouts
 FROM Users
 JOIN Workouts ON Users.user_ID = Workouts.user_ID
 GROUP BY Users.user_ID, Users.name
 HAVING COUNT(Workouts.workout_ID) > 3;
 
--- Q7. Workouts performed on a specific date
-
+-- Q7
 SELECT *
 FROM Workouts
-WHERE date = '2026-11-05';
+WHERE workout_date = '2026-11-04';
