@@ -48,6 +48,7 @@ CREATE TABLE Attendance (
     Year INT,
     No_Of_Days_Present INT,
     Total_Days INT,
+    PRIMARY KEY (student_ID, Month, Year),
     FOREIGN KEY (student_ID) REFERENCES Students(student_ID)
 );
 
@@ -98,16 +99,14 @@ DELIMITER //
 
 CREATE FUNCTION AbsentDays(sid INT, m INT, y INT)
 RETURNS INT
-DETERMINISTIC
 READS SQL DATA
 BEGIN
-    DECLARE absent INT;
+    DECLARE absent INT DEFAULT 0;
 
-    SELECT Total_Days - No_Of_Days_Present
+    SELECT COALESCE(MAX(Total_Days - No_Of_Days_Present), 0)
     INTO absent
     FROM Attendance
-    WHERE student_ID = sid AND Month = m AND Year = y
-    LIMIT 1;
+    WHERE student_ID = sid AND Month = m AND Year = y;
 
     RETURN absent;
 END //
