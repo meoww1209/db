@@ -1,5 +1,6 @@
-CREATE DATABASE FitnessDB_2A;
-USE FitnessDB_2A;
+
+CREATE DATABASE IF NOT EXISTS DBMS_2A;
+USE DBMS_2A;
 
 CREATE TABLE Goals (
     goal_ID INT PRIMARY KEY,
@@ -11,23 +12,28 @@ CREATE TABLE Users (
     name VARCHAR(50),
     email VARCHAR(100),
     registration_date DATE,
-    goal_ID INT
+    goal_ID INT,
+    FOREIGN KEY (goal_ID) REFERENCES Goals(goal_ID)
 );
 
 CREATE TABLE Users_Goal (
     user_ID INT,
     goal_ID INT,
-    goal_type VARCHAR(50)
+    goal_type VARCHAR(50),
+    PRIMARY KEY (user_ID, goal_ID),
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID),
+    FOREIGN KEY (goal_ID) REFERENCES Goals(goal_ID)
 );
 
 CREATE TABLE Workouts (
     workout_ID INT PRIMARY KEY,
     user_ID INT,
-    date DATE,
+    workout_date DATE,
     workout_type VARCHAR(50),
     start_time TIME,
     end_time TIME,
-    duration_in_minutes INT
+    duration_in_minutes INT,
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID)
 );
 
 CREATE TABLE WorkoutDetails (
@@ -35,30 +41,72 @@ CREATE TABLE WorkoutDetails (
     exercise_name VARCHAR(50),
     sets INT,
     repetitions INT,
-    weight FLOAT
+    weight INT,
+    PRIMARY KEY (workout_ID, exercise_name),
+    FOREIGN KEY (workout_ID) REFERENCES Workouts(workout_ID)
 );
 
 CREATE TABLE Steps (
     step_ID INT PRIMARY KEY,
     user_ID INT,
     tracking_date DATE,
-    step_count INT
+    step_count INT,
+    FOREIGN KEY (user_ID) REFERENCES Users(user_ID)
 );
 
--- Q1. Total workout duration per user on a particular day
+INSERT INTO Goals VALUES
+(1, 'Lose Weight'),
+(2, 'Build Muscle'),
+(3, 'Improve Endurance'),
+(4, 'Stay Fit'),
+(5, 'Gain Weight');
 
-SELECT Users.user_ID, Users.name,
-SUM(Workouts.duration_in_minutes) AS Total_Duration
+INSERT INTO Users VALUES
+(101, 'Rahul', 'rahul@gmail.com', '2026-01-10', 1),
+(102, 'Priya', 'priya@yahoo.com', '2026-02-15', 2),
+(103, 'Amit', 'amit@gmail.com', '2026-03-05', 3),
+(104, 'Sneha', 'sneha@gmail.com', '2026-04-12', 4),
+(105, 'Riya', 'riya@hotmail.com', '2026-05-20', 5);
+
+INSERT INTO Users_Goal VALUES
+(101, 1, 'Lose Weight'),
+(102, 2, 'Build Muscle'),
+(103, 3, 'Improve Endurance'),
+(104, 4, 'Stay Fit'),
+(105, 5, 'Gain Weight');
+
+INSERT INTO Workouts VALUES
+(1, 101, '2026-11-01', 'Running', '06:00:00', '07:00:00', 60),
+(2, 102, '2026-11-01', 'Cycling', '07:00:00', '07:45:00', 45),
+(3, 103, '2026-11-02', 'Yoga', '08:00:00', '08:30:00', 30),
+(4, 104, '2026-11-02', 'Running', '17:00:00', '18:00:00', 60),
+(5, 105, '2026-11-03', 'Weight Training', '18:00:00', '19:00:00', 60);
+
+INSERT INTO WorkoutDetails VALUES
+(1, 'Treadmill', 3, 10, 0),
+(2, 'Cycling', 2, 15, 0),
+(3, 'Surya Namaskar', 3, 12, 0),
+(4, 'Running', 3, 10, 0),
+(5, 'Bench Press', 3, 10, 40);
+
+INSERT INTO Steps VALUES
+(1, 101, '2026-11-01', 8000),
+(2, 102, '2026-11-01', 6500),
+(3, 103, '2026-11-02', 9000),
+(4, 104, '2026-11-02', 7000),
+(5, 105, '2026-11-03', 5000);
+
+-- Q1
+SELECT Users.name, SUM(Workouts.duration_in_minutes) AS Total_Duration
 FROM Users
 JOIN Workouts ON Users.user_ID = Workouts.user_ID
-WHERE Workouts.date = '2026-11-05'
+WHERE Workouts.workout_date = '2026-11-01'
 GROUP BY Users.user_ID, Users.name;
 
--- Q2. Procedure to retrieve workouts within a date range
-
+-- Q2
 DELIMITER //
 
-CREATE PROCEDURE Get_Workouts(
+CREATE PROCEDURE GetWorkouts(
     IN uid INT,
     IN start_date DATE,
     IN end_date DATE
@@ -67,23 +115,20 @@ BEGIN
     SELECT *
     FROM Workouts
     WHERE user_ID = uid
-    AND date BETWEEN start_date AND end_date;
+    AND workout_date BETWEEN start_date AND end_date;
 END //
 
 DELIMITER ;
 
-CALL Get_Workouts(1, '2026-11-01', '2026-11-30');
+CALL GetWorkouts(101, '2026-11-01', '2026-11-30');
 
--- Q3. Users with total number of workouts
-
-SELECT Users.name,
-COUNT(Workouts.workout_ID) AS Total_Workouts
+-- Q3
+SELECT Users.name, COUNT(Workouts.workout_ID) AS Total_Workouts
 FROM Users
 LEFT JOIN Workouts ON Users.user_ID = Workouts.user_ID
 GROUP BY Users.user_ID, Users.name;
 
--- Q4. View for workout summary
-
+-- Q4
 CREATE VIEW Workout_Summary AS
 SELECT Users.name, Workouts.workout_type,
 SUM(Workouts.duration_in_minutes) AS Total_Duration
@@ -93,15 +138,13 @@ GROUP BY Users.user_ID, Users.name, Workouts.workout_type;
 
 SELECT * FROM Workout_Summary;
 
--- Q5. Users whose goal is to lose weight
-
+-- Q5
 SELECT Users.name
 FROM Users
 JOIN Goals ON Users.goal_ID = Goals.goal_ID
 WHERE Goals.goal_type = 'Lose Weight';
 
--- Q6. Trigger to prevent end time earlier than start time
-
+-- Q6
 DELIMITER //
 
 CREATE TRIGGER Check_Workout_Time
@@ -116,8 +159,7 @@ END //
 
 DELIMITER ;
 
--- Q7. Users whose email contains gmail
-
+-- Q7
 SELECT *
 FROM Users
-WHERE email LIKE '%gmail%';
+WHERE email LIKE '%@gmail.com';
