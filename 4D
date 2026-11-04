@@ -1,0 +1,185 @@
+
+CREATE DATABASE IF NOT EXISTS DBMS_4D;
+USE DBMS_4D;
+
+CREATE TABLE Categories (
+    category_ID INT PRIMARY KEY,
+    category_name VARCHAR(50)
+);
+
+CREATE TABLE Products (
+    product_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    description VARCHAR(100),
+    price DECIMAL(10,2),
+    category_ID INT,
+    FOREIGN KEY (category_ID) REFERENCES Categories(category_ID)
+);
+
+CREATE TABLE Warehouses (
+    warehouse_ID INT PRIMARY KEY,
+    warehouse_name VARCHAR(50),
+    address VARCHAR(100)
+);
+
+CREATE TABLE Inventory (
+    inventory_ID INT PRIMARY KEY,
+    product_ID INT,
+    warehouse_ID INT,
+    quantity_in_stock INT,
+    last_stock_update DATE,
+    FOREIGN KEY (product_ID) REFERENCES Products(product_ID),
+    FOREIGN KEY (warehouse_ID) REFERENCES Warehouses(warehouse_ID)
+);
+
+CREATE TABLE Orders (
+    order_ID INT PRIMARY KEY,
+    customer_ID INT,
+    order_date DATE,
+    shipping_address VARCHAR(100),
+    order_status VARCHAR(30)
+);
+
+CREATE TABLE Shipments (
+    shipment_ID INT PRIMARY KEY,
+    order_ID INT,
+    shipping_carrier VARCHAR(50),
+    tracking_number VARCHAR(50),
+    shipment_date DATE,
+    FOREIGN KEY (order_ID) REFERENCES Orders(order_ID)
+);
+
+INSERT INTO Categories VALUES
+(1, 'Refrigerators'),
+(2, 'Washing Machines'),
+(3, 'Televisions'),
+(4, 'Air Conditioners'),
+(5, 'Microwaves');
+
+INSERT INTO Products VALUES
+(101, 'Samsung Fridge', 'Double Door Refrigerator', 45000, 1),
+(102, 'LG Washing Machine', 'Front Load', 35000, 2),
+(103, 'Sony TV', 'Smart LED TV', 55000, 3),
+(104, 'Voltas AC', 'Split Air Conditioner', 40000, 4),
+(105, 'IFB Microwave', 'Convection Microwave', 15000, 5);
+
+INSERT INTO Warehouses VALUES
+(1, 'Pune Warehouse', 'Pune'),
+(2, 'Mumbai Warehouse', 'Mumbai'),
+(3, 'Delhi Warehouse', 'Delhi'),
+(4, 'Nashik Warehouse', 'Nashik'),
+(5, 'Nagpur Warehouse', 'Nagpur');
+
+INSERT INTO Inventory VALUES
+(1, 101, 1, 20, '2026-11-01'),
+(2, 102, 2, 30, '2026-11-02'),
+(3, 103, 3, 15, '2026-11-03'),
+(4, 104, 4, 10, '2026-11-04'),
+(5, 105, 5, 40, '2026-11-05');
+
+INSERT INTO Orders VALUES
+(1, 201, '2026-11-01', 'Pune', 'Pending'),
+(2, 202, '2026-11-02', 'Mumbai', 'Shipped'),
+(3, 203, '2026-11-03', 'Delhi', 'Delivered'),
+(4, 204, '2026-11-04', 'Nashik', 'Pending'),
+(5, 205, '2026-11-05', 'Nagpur', 'Shipped');
+
+INSERT INTO Shipments VALUES
+(1, 1, 'BlueDart', 'BD101', '2026-11-02'),
+(2, 2, 'Delhivery', 'DL102', '2026-11-03'),
+(3, 3, 'FedEx', 'FX103', '2026-11-04'),
+(4, 4, 'DTDC', 'DT104', '2026-11-05'),
+(5, 5, 'BlueDart', 'BD105', '2026-11-06');
+
+-- Q1
+DELIMITER //
+
+CREATE FUNCTION IsOutOfStock(pid INT)
+RETURNS BOOLEAN
+READS SQL DATA
+BEGIN
+    DECLARE total_stock INT;
+
+    SELECT COALESCE(SUM(quantity_in_stock), 0)
+    INTO total_stock
+    FROM Inventory
+    WHERE product_ID = pid;
+
+    RETURN total_stock = 0;
+END //
+
+DELIMITER ;
+
+SELECT product_ID, name, IsOutOfStock(product_ID) AS Out_Of_Stock
+FROM Products;
+
+-- Q2
+SELECT Orders.order_ID, Orders.customer_ID,
+Orders.order_date, Orders.shipping_address,
+Orders.order_status, Shipments.tracking_number
+FROM Orders
+LEFT JOIN Shipments
+ON Orders.order_ID = Shipments.order_ID;
+
+-- Q3
+SELECT name, price
+FROM Products
+WHERE category_ID = (
+    SELECT category_ID
+    FROM Categories
+    WHERE category_name = 'Washing Machines'
+)
+UNION
+SELECT name, price
+FROM Products
+WHERE price > 900;
+
+-- Q4
+SELECT Products.*
+FROM Products
+JOIN Categories
+ON Products.category_ID = Categories.category_ID
+WHERE Categories.category_name = 'Refrigerators';
+
+-- Q5
+SELECT COUNT(*) AS Total_Orders
+FROM Orders;
+
+-- Q6
+DELIMITER //
+
+CREATE PROCEDURE DisplayProducts()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE pname VARCHAR(50);
+    DECLARE pprice DECIMAL(10,2);
+
+    DECLARE product_cursor CURSOR FOR
+        SELECT name, price FROM Products;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND
+        SET finished = 1;
+
+    OPEN product_cursor;
+
+    read_loop: LOOP
+        FETCH product_cursor INTO pname, pprice;
+
+        IF finished = 1 THEN
+            LEAVE read_loop;
+        END IF;
+
+        SELECT pname AS Product_Name, pprice AS Price;
+    END LOOP;
+
+    CLOSE product_cursor;
+END //
+
+DELIMITER ;
+
+CALL DisplayProducts();
+
+-- Q7
+SELECT MAX(price) AS Maximum_Price,
+MIN(price) AS Minimum_Price
+FROM Products;
