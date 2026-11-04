@@ -1,5 +1,6 @@
-CREATE DATABASE CollegeDB_1B;
-USE CollegeDB_1B;
+
+CREATE DATABASE IF NOT EXISTS DBMS_1B;
+USE DBMS_1B;
 
 CREATE TABLE Subjects (
     subject_ID INT PRIMARY KEY,
@@ -9,13 +10,15 @@ CREATE TABLE Subjects (
 CREATE TABLE Teachers (
     teacher_ID INT PRIMARY KEY,
     name VARCHAR(50),
-    subject_ID INT
+    subject_ID INT,
+    FOREIGN KEY (subject_ID) REFERENCES Subjects(subject_ID)
 );
 
 CREATE TABLE Classes (
     class_ID INT PRIMARY KEY,
     class_name VARCHAR(30),
-    teacher_ID INT
+    teacher_ID INT,
+    FOREIGN KEY (teacher_ID) REFERENCES Teachers(teacher_ID)
 );
 
 CREATE TABLE Students (
@@ -23,127 +26,157 @@ CREATE TABLE Students (
     name VARCHAR(50),
     date_of_birth DATE,
     gender VARCHAR(10),
-    class_ID INT
+    class_ID INT,
+    FOREIGN KEY (class_ID) REFERENCES Classes(class_ID)
 );
 
 CREATE TABLE Marks (
-    Exam_id INT,
+    Exam_ID INT AUTO_INCREMENT PRIMARY KEY,
     student_ID INT,
     class_ID INT,
     subject_ID INT,
     exam_name VARCHAR(50),
-    marks INT
+    marks INT,
+    FOREIGN KEY (student_ID) REFERENCES Students(student_ID),
+    FOREIGN KEY (class_ID) REFERENCES Classes(class_ID),
+    FOREIGN KEY (subject_ID) REFERENCES Subjects(subject_ID)
 );
 
 CREATE TABLE Attendance (
     student_ID INT,
-    month VARCHAR(15),
-    year INT,
-    no_of_days_present INT,
-    total_working_days INT
+    Month INT,
+    Year INT,
+    No_Of_Days_Present INT,
+    Total_Days INT,
+    FOREIGN KEY (student_ID) REFERENCES Students(student_ID)
 );
 
--- Q1. Function to calculate absent days
+INSERT INTO Subjects VALUES
+(1, 'DBMS'),
+(2, 'Java'),
+(3, 'Python'),
+(4, 'OS'),
+(5, 'CN');
 
+INSERT INTO Teachers VALUES
+(1, 'Patil', 1),
+(2, 'Sharma', 2),
+(3, 'Kadam', 3),
+(4, 'Joshi', 4),
+(5, 'Deshmukh', 5);
+
+INSERT INTO Classes VALUES
+(1, 'SE', 1),
+(2, 'TE', 2),
+(3, 'BE', 3),
+(4, 'FE', 4),
+(5, 'SE', 5);
+
+INSERT INTO Students VALUES
+(101, 'Rahul', '2005-03-14', 'Male', 1),
+(102, 'Karan', '2005-07-20', 'Male', 1),
+(103, 'Amit', '2004-03-05', 'Male', 2),
+(104, 'Sneha', '2005-12-09', 'Female', 3),
+(105, 'Riya', '2004-06-18', 'Female', 5);
+
+INSERT INTO Marks (student_ID, class_ID, subject_ID, exam_name, marks) VALUES
+(101, 1, 1, 'Midterm', 24),
+(102, 1, 2, 'Midterm', 18),
+(103, 2, 3, 'Midterm', 8),
+(104, 3, 4, 'Midterm', 21),
+(105, 5, 5, 'Midterm', 25);
+
+INSERT INTO Attendance VALUES
+(101, 3, 2026, 20, 25),
+(102, 3, 2026, 22, 25),
+(103, 3, 2026, 18, 25),
+(104, 3, 2026, 23, 25),
+(105, 3, 2026, 21, 25);
+
+-- Q1
 DELIMITER //
 
-CREATE FUNCTION Absent_Days(
-    sid INT,
-    m VARCHAR(15),
-    y INT
-)
+CREATE FUNCTION AbsentDays(sid INT, m INT, y INT)
 RETURNS INT
 DETERMINISTIC
+READS SQL DATA
 BEGIN
     DECLARE absent INT;
 
-    SELECT total_working_days - no_of_days_present
+    SELECT Total_Days - No_Of_Days_Present
     INTO absent
     FROM Attendance
-    WHERE student_ID = sid
-    AND month = m
-    AND year = y;
+    WHERE student_ID = sid AND Month = m AND Year = y
+    LIMIT 1;
 
     RETURN absent;
 END //
 
 DELIMITER ;
 
-SELECT Absent_Days(101, 'March', 2026);
+SELECT AbsentDays(101, 3, 2026);
 
--- Q2. SE students scoring more than 20
-
-SELECT DISTINCT Students.student_ID, Students.name
+-- Q2
+SELECT DISTINCT Students.name
 FROM Students
-JOIN Classes ON Students.class_ID = Classes.class_ID
 JOIN Marks ON Students.student_ID = Marks.student_ID
-WHERE Classes.class_name = 'SE'
-AND Marks.marks > 20;
+JOIN Classes ON Students.class_ID = Classes.class_ID
+WHERE Classes.class_name = 'SE' AND Marks.marks > 20;
 
--- Q3. Names having second letter 'a'
-
-SELECT *
+-- Q3
+SELECT name
 FROM Students
 WHERE name LIKE '_a%';
 
--- Q4. Average attendance percentage of SE students in March
-
-SELECT AVG(
-    no_of_days_present * 100.0 / total_working_days
-) AS Average_Attendance
+-- Q4
+SELECT AVG((No_Of_Days_Present / Total_Days) * 100) AS Average_Attendance
 FROM Attendance
 JOIN Students ON Attendance.student_ID = Students.student_ID
 JOIN Classes ON Students.class_ID = Classes.class_ID
-WHERE Classes.class_name = 'SE'
-AND month = 'March';
+WHERE Classes.class_name = 'SE' AND Attendance.Month = 3;
 
--- Q5. Students scoring below 10 marks
-
+-- Q5
 SELECT DISTINCT Students.name
 FROM Students
 JOIN Marks ON Students.student_ID = Marks.student_ID
 WHERE Marks.marks < 10;
 
--- Q6. SE students and their Midterm total marks
-
+-- Q6
 SELECT Students.name, SUM(Marks.marks) AS Total_Marks
 FROM Students
 JOIN Classes ON Students.class_ID = Classes.class_ID
 JOIN Marks ON Students.student_ID = Marks.student_ID
-WHERE Classes.class_name = 'SE'
-AND Marks.exam_name = 'Midterm'
+WHERE Classes.class_name = 'SE' AND Marks.exam_name = 'Midterm'
 GROUP BY Students.student_ID, Students.name;
 
--- Q7. Cursor to display student names one by one
-
+-- Q7
 DELIMITER //
 
-CREATE PROCEDURE Display_Students()
+CREATE PROCEDURE DisplayStudents()
 BEGIN
     DECLARE finished INT DEFAULT 0;
     DECLARE student_name VARCHAR(50);
 
-    DECLARE cur CURSOR FOR
+    DECLARE student_cursor CURSOR FOR
         SELECT name FROM Students;
 
-    DECLARE CONTINUE HANDLER FOR NOT FOUND
-        SET finished = 1;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
 
-    OPEN cur;
+    OPEN student_cursor;
 
     read_loop: LOOP
-        FETCH cur INTO student_name;
+        FETCH student_cursor INTO student_name;
 
         IF finished = 1 THEN
             LEAVE read_loop;
         END IF;
 
-        SELECT student_name;
+        SELECT student_name AS Student_Name;
     END LOOP;
 
-    CLOSE cur;
+    CLOSE student_cursor;
 END //
 
 DELIMITER ;
 
-CALL Display_Students();
+CALL DisplayStudents();
