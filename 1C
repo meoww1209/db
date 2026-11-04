@@ -1,0 +1,117 @@
+CREATE DATABASE SchoolDB_1C;
+USE SchoolDB_1C;
+
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT
+);
+
+CREATE TABLE Students (
+    student_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    class_ID INT
+);
+
+CREATE TABLE Subjects (
+    subject_ID INT PRIMARY KEY,
+    subject_name VARCHAR(50)
+);
+
+CREATE TABLE Teachers (
+    teacher_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    subject_ID INT
+);
+
+CREATE TABLE Grades (
+    grade_ID INT PRIMARY KEY,
+    student_ID INT,
+    subject_ID INT,
+    exam_name VARCHAR(50),
+    marks INT
+);
+
+CREATE TABLE Attendance (
+    student_ID INT,
+    attendance_date DATE,
+    status VARCHAR(15)
+);
+
+-- Q5. History table
+
+CREATE TABLE Student_Class_History (
+    student_name VARCHAR(50),
+    old_class_ID INT,
+    new_class_ID INT,
+    changed_at TIMESTAMP
+);
+
+-- Q1. View for attendance summary
+
+CREATE VIEW Attendance_Summary AS
+SELECT Students.student_ID, Students.name,
+COUNT(Attendance.student_ID) AS Total_Days,
+SUM(Attendance.status = 'Present') AS Present_Days,
+SUM(Attendance.status = 'Absent') AS Absent_Days,
+SUM(Attendance.status = 'Late') AS Late_Days
+FROM Students
+LEFT JOIN Attendance
+ON Students.student_ID = Attendance.student_ID
+GROUP BY Students.student_ID, Students.name;
+
+SELECT * FROM Attendance_Summary;
+
+-- Q2. Number of students in each class
+
+SELECT Classes.class_name,
+COUNT(Students.student_ID) AS Total_Students
+FROM Classes
+LEFT JOIN Students
+ON Classes.class_ID = Students.class_ID
+GROUP BY Classes.class_ID, Classes.class_name;
+
+-- Q3. Students whose names begin with D
+
+SELECT student_ID, name
+FROM Students
+WHERE name LIKE 'D%';
+
+-- Q4. Total number of subjects
+
+SELECT COUNT(*) AS Total_Subjects
+FROM Subjects;
+
+-- Q5. Trigger to record class changes
+
+DELIMITER //
+
+CREATE TRIGGER Class_Change
+AFTER UPDATE ON Students
+FOR EACH ROW
+BEGIN
+    IF OLD.class_ID <> NEW.class_ID THEN
+        INSERT INTO Student_Class_History
+        VALUES (OLD.name, OLD.class_ID, NEW.class_ID, NOW());
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Q6. Top 3 highest marks in Midterm
+
+SELECT Students.name, Subjects.subject_name, Grades.marks
+FROM Grades
+JOIN Students ON Grades.student_ID = Students.student_ID
+JOIN Subjects ON Grades.subject_ID = Subjects.subject_ID
+WHERE Grades.exam_name = 'Midterm'
+ORDER BY Grades.marks DESC
+LIMIT 3;
+
+-- Q7. Students in ascending order
+
+SELECT *
+FROM Students
+ORDER BY name ASC;
