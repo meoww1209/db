@@ -1,0 +1,199 @@
+
+CREATE DATABASE IF NOT EXISTS DBMS_4B;
+USE DBMS_4B;
+
+CREATE TABLE Categories (
+    category_ID INT PRIMARY KEY,
+    category_name VARCHAR(50)
+);
+
+CREATE TABLE Products (
+    product_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    description VARCHAR(100),
+    price DECIMAL(10,2),
+    category_ID INT,
+    FOREIGN KEY (category_ID) REFERENCES Categories(category_ID)
+);
+
+CREATE TABLE Warehouses (
+    warehouse_ID INT PRIMARY KEY,
+    warehouse_name VARCHAR(50),
+    address VARCHAR(100)
+);
+
+CREATE TABLE Inventory (
+    inventory_ID INT PRIMARY KEY,
+    product_ID INT,
+    warehouse_ID INT,
+    quantity_in_stock INT,
+    last_stock_update DATE,
+    FOREIGN KEY (product_ID) REFERENCES Products(product_ID),
+    FOREIGN KEY (warehouse_ID) REFERENCES Warehouses(warehouse_ID)
+);
+
+CREATE TABLE Orders (
+    order_ID INT PRIMARY KEY,
+    customer_ID INT,
+    order_date DATE,
+    shipping_address VARCHAR(100),
+    order_status VARCHAR(30)
+);
+
+CREATE TABLE Shipments (
+    shipment_ID INT PRIMARY KEY,
+    order_ID INT,
+    shipping_carrier VARCHAR(50),
+    tracking_number VARCHAR(50),
+    shipment_date DATE,
+    FOREIGN KEY (order_ID) REFERENCES Orders(order_ID)
+);
+
+INSERT INTO Categories VALUES
+(1, 'Refrigerators'),
+(2, 'Washing Machines'),
+(3, 'Televisions'),
+(4, 'Air Conditioners'),
+(5, 'Microwaves');
+
+INSERT INTO Products VALUES
+(101, 'Samsung Fridge', 'Double Door Refrigerator', 45000, 1),
+(102, 'LG Washing Machine', 'Front Load', 35000, 2),
+(103, 'Sony TV', 'Smart LED TV', 55000, 3),
+(104, 'Voltas AC', 'Split Air Conditioner', 40000, 4),
+(105, 'IFB Microwave', 'Convection Microwave', 15000, 5);
+
+INSERT INTO Warehouses VALUES
+(1, 'Pune Warehouse', 'Pune'),
+(2, 'Mumbai Warehouse', 'Mumbai'),
+(3, 'Delhi Warehouse', 'Delhi'),
+(4, 'Nashik Warehouse', 'Nashik'),
+(5, 'Nagpur Warehouse', 'Nagpur');
+
+INSERT INTO Inventory VALUES
+(1, 101, 1, 20, '2026-11-01'),
+(2, 102, 2, 30, '2026-11-02'),
+(3, 103, 3, 15, '2026-11-03'),
+(4, 104, 4, 10, '2026-11-04'),
+(5, 105, 5, 40, '2026-11-05');
+
+INSERT INTO Orders VALUES
+(1, 201, '2026-11-01', 'Pune', 'Pending'),
+(2, 202, '2026-11-02', 'Mumbai', 'Shipped'),
+(3, 203, '2026-11-03', 'Delhi', 'Delivered'),
+(4, 204, '2026-11-04', 'Nashik', 'Pending'),
+(5, 205, '2026-11-05', 'Nagpur', 'Shipped');
+
+INSERT INTO Shipments VALUES
+(1, 1, 'BlueDart', 'BD101', '2026-11-02'),
+(2, 2, 'Delhivery', 'DL102', '2026-11-03'),
+(3, 3, 'FedEx', 'FX103', '2026-11-04'),
+(4, 4, 'DTDC', 'DT104', '2026-11-05'),
+(5, 5, 'BlueDart', 'BD105', '2026-11-06');
+
+-- Q1
+SELECT Products.name,
+COALESCE(SUM(Inventory.quantity_in_stock), 0) AS Total_Stock
+FROM Products
+LEFT JOIN Inventory
+ON Products.product_ID = Inventory.product_ID
+GROUP BY Products.product_ID, Products.name;
+
+-- Q2
+SELECT Categories.category_name,
+AVG(Products.price) AS Average_Price
+FROM Categories
+JOIN Products
+ON Categories.category_ID = Products.category_ID
+GROUP BY Categories.category_ID, Categories.category_name;
+
+-- Q3
+SELECT Products.name, Products.price
+FROM Products
+JOIN Categories
+ON Products.category_ID = Categories.category_ID
+WHERE Categories.category_name = 'Refrigerators'
+
+UNION
+
+SELECT name, price
+FROM Products
+WHERE price > 1000;
+
+-- Q4
+DELIMITER //
+
+CREATE PROCEDURE DisplayProductStock()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE pname VARCHAR(50);
+    DECLARE total INT;
+
+    DECLARE product_cursor CURSOR FOR
+        SELECT Products.name,
+        COALESCE(SUM(Inventory.quantity_in_stock), 0)
+        FROM Products
+        LEFT JOIN Inventory
+        ON Products.product_ID = Inventory.product_ID
+        GROUP BY Products.product_ID, Products.name;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND
+        SET finished = 1;
+
+    OPEN product_cursor;
+
+    read_loop: LOOP
+        FETCH product_cursor INTO pname, total;
+
+        IF finished = 1 THEN
+            LEAVE read_loop;
+        END IF;
+
+        SELECT pname AS Product_Name, total AS Total_Stock;
+    END LOOP;
+
+    CLOSE product_cursor;
+END //
+
+DELIMITER ;
+
+CALL DisplayProductStock();
+
+-- Q5
+SELECT Warehouses.warehouse_name,
+SUM(Inventory.quantity_in_stock) AS Total_Stock
+FROM Warehouses
+JOIN Inventory
+ON Warehouses.warehouse_ID = Inventory.warehouse_ID
+GROUP BY Warehouses.warehouse_ID, Warehouses.warehouse_name
+HAVING SUM(Inventory.quantity_in_stock) < 50;
+
+-- Q6
+CREATE VIEW Orders_After_2026 AS
+SELECT *
+FROM Orders
+WHERE order_date > '2026-01-01';
+
+SELECT * FROM Orders_After_2026;
+
+-- Q7
+DELIMITER //
+
+CREATE FUNCTION GetCategoryName(cid INT)
+RETURNS VARCHAR(50)
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE cname VARCHAR(50);
+
+    SELECT category_name
+    INTO cname
+    FROM Categories
+    WHERE category_ID = cid;
+
+    RETURN cname;
+END //
+
+DELIMITER ;
+
+SELECT GetCategoryName(1) AS Category_Name;
