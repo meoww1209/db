@@ -1,0 +1,114 @@
+CREATE DATABASE SchoolDB_1D;
+USE SchoolDB_1D;
+
+CREATE TABLE Classes (
+    class_ID INT PRIMARY KEY,
+    class_name VARCHAR(30),
+    teacher_ID INT
+);
+
+CREATE TABLE Students (
+    student_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    date_of_birth DATE,
+    gender VARCHAR(10),
+    class_ID INT
+);
+
+CREATE TABLE Subjects (
+    subject_ID INT PRIMARY KEY,
+    subject_name VARCHAR(50)
+);
+
+CREATE TABLE Teachers (
+    teacher_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    subject_ID INT
+);
+
+CREATE TABLE Grades (
+    grade_ID INT PRIMARY KEY,
+    student_ID INT,
+    subject_ID INT,
+    exam_name VARCHAR(50),
+    marks INT
+);
+
+CREATE TABLE Attendance (
+    student_ID INT,
+    attendance_date DATE,
+    status VARCHAR(15)
+);
+
+-- Q1. Student names with class names
+
+SELECT Students.name, Classes.class_name
+FROM Students
+JOIN Classes
+ON Students.class_ID = Classes.class_ID;
+
+-- Q2. Highest marks in each subject
+
+SELECT Subjects.subject_name, MAX(Grades.marks) AS Highest_Marks
+FROM Grades
+JOIN Subjects
+ON Grades.subject_ID = Subjects.subject_ID
+GROUP BY Subjects.subject_ID, Subjects.subject_name;
+
+-- Q3. Trigger to prevent negative marks
+
+DELIMITER //
+
+CREATE TRIGGER Check_Marks
+BEFORE INSERT ON Grades
+FOR EACH ROW
+BEGIN
+    IF NEW.marks < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Marks cannot be negative';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Q4. Procedure to count students in a class
+
+DELIMITER //
+
+CREATE PROCEDURE Class_Students(IN cid INT)
+BEGIN
+    SELECT COUNT(*) AS Total_Students
+    FROM Students
+    WHERE class_ID = cid;
+END //
+
+DELIMITER ;
+
+CALL Class_Students(1);
+
+-- Q5. Students having total marks greater than 80
+
+SELECT Students.student_ID, Students.name,
+SUM(Grades.marks) AS Total_Marks
+FROM Students
+JOIN Grades
+ON Students.student_ID = Grades.student_ID
+GROUP BY Students.student_ID, Students.name
+HAVING SUM(Grades.marks) > 80;
+
+-- Q6. Students whose names contain 'sh'
+
+SELECT *
+FROM Students
+WHERE name LIKE '%sh%';
+
+-- Q7. Subjects having average marks above overall average
+
+SELECT Subjects.subject_name, AVG(Grades.marks) AS Average_Marks
+FROM Grades
+JOIN Subjects
+ON Grades.subject_ID = Subjects.subject_ID
+GROUP BY Subjects.subject_ID, Subjects.subject_name
+HAVING AVG(Grades.marks) > (
+    SELECT AVG(marks) FROM Grades
+);
