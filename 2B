@@ -1,0 +1,112 @@
+CREATE DATABASE FitnessDB_2B;
+USE FitnessDB_2B;
+
+CREATE TABLE Goals (
+    goal_ID INT PRIMARY KEY,
+    goal_type VARCHAR(50)
+);
+
+CREATE TABLE Users (
+    user_ID INT PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100),
+    registration_date DATE,
+    goal_ID INT
+);
+
+CREATE TABLE Users_Goal (
+    user_ID INT,
+    goal_ID INT,
+    goal_type VARCHAR(50)
+);
+
+CREATE TABLE Workouts (
+    workout_ID INT PRIMARY KEY,
+    user_ID INT,
+    date DATE,
+    workout_type VARCHAR(50),
+    start_time TIME,
+    end_time TIME,
+    duration_in_minutes INT
+);
+
+CREATE TABLE WorkoutDetails (
+    workout_ID INT,
+    exercise_name VARCHAR(50),
+    sets INT,
+    repetitions INT,
+    weight FLOAT
+);
+
+CREATE TABLE Steps (
+    step_ID INT PRIMARY KEY,
+    user_ID INT,
+    tracking_date DATE,
+    step_count INT
+);
+
+-- Q1. Users with Improve Endurance goal and Running/Cycling workouts
+
+SELECT DISTINCT Users.name
+FROM Users
+JOIN Goals ON Users.goal_ID = Goals.goal_ID
+JOIN Workouts ON Users.user_ID = Workouts.user_ID
+WHERE Goals.goal_type = 'Improve Endurance'
+AND Workouts.workout_type IN ('Running', 'Cycling');
+
+-- Q2. Average daily step count of each user
+
+SELECT Users.name, AVG(Daily_Steps.Total_Steps) AS Average_Steps
+FROM Users
+JOIN (
+    SELECT user_ID, tracking_date, SUM(step_count) AS Total_Steps
+    FROM Steps
+    GROUP BY user_ID, tracking_date
+) AS Daily_Steps
+ON Users.user_ID = Daily_Steps.user_ID
+GROUP BY Users.user_ID, Users.name;
+
+-- Q3. Total number of users
+
+SELECT COUNT(*) AS Total_Users
+FROM Users;
+
+-- Q4. View showing each user's most recent workout date
+
+CREATE VIEW Recent_Workouts AS
+SELECT Users.name, MAX(Workouts.date) AS Latest_Workout
+FROM Users
+LEFT JOIN Workouts ON Users.user_ID = Workouts.user_ID
+GROUP BY Users.user_ID, Users.name;
+
+SELECT * FROM Recent_Workouts;
+
+-- Q5. Trigger to ensure end time is after start time
+
+DELIMITER //
+
+CREATE TRIGGER Check_Workout_Time
+BEFORE INSERT ON Workouts
+FOR EACH ROW
+BEGIN
+    IF NEW.end_time <= NEW.start_time THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'End time must be after start time';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Q6. Users who completed more than 3 workouts
+
+SELECT Users.name, COUNT(Workouts.workout_ID) AS Total_Workouts
+FROM Users
+JOIN Workouts ON Users.user_ID = Workouts.user_ID
+GROUP BY Users.user_ID, Users.name
+HAVING COUNT(Workouts.workout_ID) > 3;
+
+-- Q7. Workouts performed on a specific date
+
+SELECT *
+FROM Workouts
+WHERE date = '2026-11-05';
